@@ -82,6 +82,10 @@ static void ImportFromExcel(string excelFile, string resxDirectory)
     var headers = sheet.Row(1).CellsUsed().Select(c => c.Value.ToString()).ToList();
     var translations = new Dictionary<string, Dictionary<string, string>>();
     
+    XNamespace xsdNs = "http://www.w3.org/2001/XMLSchema";
+    XNamespace msdataNs = "urn:schemas-microsoft-com:xml-msdata";
+    XNamespace xmlNs = "http://www.w3.org/XML/1998/namespace";
+
     foreach (var row in sheet.RowsUsed().Skip(1))
     {
         string key = row.Cell(1).GetString();
@@ -100,7 +104,77 @@ static void ImportFromExcel(string excelFile, string resxDirectory)
     {
         var fileName = Path.Combine(resxDirectory, lang == "Neutral" ? "Messages.resx" : $"Messages.{lang}.resx");
         var doc = new XDocument(new XElement("root"));
-        
+
+        doc.Root.Add(
+            new XElement(xsdNs + "schema", 
+                new XAttribute(XNamespace.Xmlns + "xsd", xsdNs),
+                new XAttribute("id", "root"),
+                new XAttribute("xmlns", ""),
+                new XElement(xsdNs + "element", 
+                    new XAttribute("name", "root"),
+                    new XElement(xsdNs + "complexType",
+                        new XElement(xsdNs + "choice",
+                            new XAttribute("maxOccurs", "unbounded"),
+                            new XElement(xsdNs + "element", 
+                                new XAttribute("name", "data"),
+                                new XElement(xsdNs + "complexType",
+                                    new XElement(xsdNs + "sequence",
+                                        new XElement(xsdNs + "element",
+                                            new XAttribute("name", "value"),
+                                            new XAttribute("minOccurs", "0"),
+                                            new XAttribute(msdataNs + "Ordinal", "1"),
+                                            new XAttribute("type", "xsd:string")
+                                        ),
+                                        new XElement(xsdNs + "element",
+                                            new XAttribute("name", "comment"),
+                                            new XAttribute("minOccurs", "0"),
+                                            new XAttribute(msdataNs + "Ordinal", "2"),
+                                            new XAttribute("type", "xsd:string")
+                                        )
+                                    ),
+                                    new XElement(xsdNs + "attribute",
+                                        new XAttribute("name", "name"),
+                                        new XAttribute("type", "xsd:string"),
+                                        new XAttribute("use", "required")
+                                    ),
+                                    new XElement(xsdNs + "attribute",
+                                        new XAttribute("name", "type"),
+                                        new XAttribute("type", "xsd:string")
+                                    ),
+                                    new XElement(xsdNs + "attribute",
+                                        new XAttribute("name", "mimetype"),
+                                        new XAttribute("type", "xsd:string")
+                                    ),
+                                    new XElement(xsdNs + "attribute", 
+                                        new XAttribute("ref", "xml:space")
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        doc.Root.Add(
+            new XElement("resheader", 
+                new XAttribute("name", "resmimetype"),
+                new XElement("value", "text/microsoft-resx")
+            ),
+            new XElement("resheader",
+                new XAttribute("name", "version"), 
+                new XElement("value", "2.0")
+            ),
+            new XElement("resheader",
+                new XAttribute("name", "reader"),
+                new XElement("value", "System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")
+            ),
+            new XElement("resheader",
+                new XAttribute("name", "writer"),
+                new XElement("value", "System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")
+            )
+        );
+
         foreach (var entry in translations)
         {
             if (!entry.Value.TryGetValue(lang, out string value)) continue;
